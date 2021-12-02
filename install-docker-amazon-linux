@@ -2,6 +2,8 @@
 
 # Install docker with docker-compose optionally on Amazon Linux 2
 # Copyright 2021 asonnleitner
+# Usage:
+# curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux | sudo bash
 
 # -e : exit immediately if a command exits with a non-zero status
 # -x : print each command before executing it
@@ -130,7 +132,7 @@ function main() {
   # Start docker service
   logger "info" "Starting docker service"
   systemctl enable docker --now
-  
+
 
   # Add user to docker group
   logger "info" "Adding ${USER} to docker group"
