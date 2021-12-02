@@ -63,7 +63,7 @@ function logger() {
   esac
 }
 
-# Check if user is root $(id -u)
+# Check if user is root
 if [[ "$(id -u)" != "0" ]]; then
   logger "fatal" "This script must be run as root"
   exit 1
@@ -137,13 +137,21 @@ function enable_docker() {
 
 function prompt_start_docker() {
   logger "info" "Would you like to start docker?"
-  read -p "Start docker? [y/N] " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    enable_docker
-  else
-    logger "trace" "Skipping docker start"
-  fi
+  while true; do
+    read -rp "Start docker? [y/n]: " yn
+    case $yn in
+    [Yy]*)
+      enable_docker
+      break
+      ;;
+    [Nn]*)
+      break
+      ;;
+    *)
+      echo "Please answer yes or no."
+      ;;
+    esac
+  done
 }
 
 function install_docker_compose() {
@@ -157,13 +165,21 @@ function install_docker_compose() {
 
 function prompt_install_docker_compose() {
   logger "info" "Would you like to install docker-compose?"
-  read -p "Install docker-compose? [y/N] " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    install_docker_compose
-  else
-    logger "trace" "Skipping docker-compose installation"
-  fi
+  while true; do
+    read -rp "Install docker-compose? [y/n]: " yn
+    case $yn in
+    [Yy]*)
+      install_docker_compose
+      break
+      ;;
+    [Nn]*)
+      break
+      ;;
+    *)
+      echo "Please answer yes or no."
+      ;;
+    esac
+  done
 }
 
 function main() {
@@ -201,7 +217,7 @@ function main() {
       prompt_install_docker_compose
     fi
   fi
-  
+
   logger "info" "To apply changes, reboot is required"
 
   # Ask user if they want to reboot now
