@@ -2,16 +2,23 @@
 
 # Install docker with docker-compose optionally on Amazon Linux 2
 # Copyright 2021 asonnleitner
+#
+# Arguments:
+#   --compose: Install including docker-compose
+#
 # Usage:
-# curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux -o $HOME/install-docker-amazon-linux && chmod +x $HOME/install-docker-amazon-linux && $HOME/install-docker-amazon-linux
+# To install just docker
+# curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux -o $HOME/install-docker-amazon-linux && chmod +x $HOME/install-docker-amazon-linux && sudo $HOME/install-docker-amazon-linux
+#
+# To install docker with docker-compose
+# curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux -o $HOME/install-docker-amazon-linux && chmod +x $HOME/install-docker-amazon-linux && sudo $HOME/install-docker-amazon-linux --compose
+#
+# For some reason when the script is running from curl ... | sudo bash, the script exits on the prompts
 
 # -e : exit immediately if a command exits with a non-zero status
 # -u : treat unset variables as an error when substituting
 # -o pipefail : pipe commands to fd 3 in case a command in a pipe fails
 set -euo pipefail
-
-# script directory
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Stdout logging utility function
 # Usage:
@@ -67,10 +74,10 @@ function logger() {
 }
 
 # Check if user is root
-if [[ "$(id -u)" != "0" ]]; then
-  logger "fatal" "This script must be run as root"
-  exit 1
-fi
+#if [[ "$(id -u)" != "0" ]]; then
+#  logger "fatal" "This script must be run as root"
+#  exit 1
+#fi
 
 # Check if running on Amazon Linux 2
 function valid_distribution() {
@@ -97,10 +104,6 @@ function command_exists() {
 
 function is_service_active() {
   systemctl is-active "${1}"
-}
-
-function is_service_enabled() {
-  systemctl is-enabled "${1}"
 }
 
 function update_system() {
@@ -131,99 +134,44 @@ function install_docker() {
 }
 
 function enable_docker() {
-  # check if docker service is_service_active and is_service_enabled
+  # check if docker service is active
   if ! is_service_active "docker"; then
     logger "info" "Enabling docker service"
     systemctl enable docker --now
   fi
 }
 
-function prompt_start_docker() {
-  logger "info" "Would you like to start docker?"
-  while true; do
-    read -rp "Start docker? [y/n]: " yn
-    case $yn in
-    [Yy]*)
-      enable_docker
-      break
-      ;;
-    [Nn]*)
-      break
-      ;;
-    *)
-      echo "Please answer yes or no."
-      ;;
-    esac
-  done
-}
-
 function install_docker_compose() {
-  logger "info" "Installing docker-compose"
-  curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-    -o /usr/local/bin/docker-compose
+  if ! command_exists "docker-compose"; then
+    logger "info" "Installing docker-compose"
+    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+      -o /usr/local/bin/docker-compose
 
-  # Make docker-compose executable
-  chmod +x /usr/local/bin/docker-compose
-}
-
-function prompt_install_docker_compose() {
-  logger "info" "Would you like to install docker-compose?"
-  while true; do
-    read -rp "Install docker-compose? [y/n]: " yn
-    case $yn in
-    [Yy]*)
-      install_docker_compose
-      break
-      ;;
-    [Nn]*)
-      break
-      ;;
-    *)
-      echo "Please answer yes or no."
-      ;;
-    esac
-  done
+    # Make docker-compose executable
+    chmod +x /usr/local/bin/docker-compose
+  fi
 }
 
 function main() {
+  local install_compose=${1:-}
+
   # Check if running on Amazon Linux 2
   valid_distribution
 
   # Updating system
   update_system
 
+  # install docker-compose binary
+  if [[ "${install_compose}" == "--compose" ]]; then
+    install_docker_compose
+  fi
+
   # check if docker is installed
-  if command_exists "docker"; then
-    logger "trace" "Docker is already installed"
-
-    #check if docker is running
-    if is_service_active "docker"; then
-      logger "trace" "Docker is already running"
-    else
-      logger "info" "Docker is not running"
-      prompt_start_docker
-    fi
-
-    # check if docker-compose is installed
-    if command_exists "docker-compose"; then
-      logger "trace" "Docker-compose is already installed"
-    else
-      logger "info" "Docker-compose is not installed"
-      prompt_install_docker_compose
-    fi
-
-    exit 0
-  else
-    logger "info" "Docker is not installed"
+  if ! command_exists "docker"; then
     install_docker
-    # check if docker-compose is not installed
-    if ! command_exists "docker-compose"; then
-      prompt_install_docker_compose
-    fi
-
-    logger "info" "To apply changes, reboot is required"
 
     # Ask user if they want to reboot now
+    logger "info" "To apply changes, reboot is required"
     logger "info" "Would you like to reboot now?"
     while true; do
       read -rp "Reboot now? [y/n]: " yn
@@ -240,9 +188,9 @@ function main() {
         ;;
       esac
     done
-
-    exit 0
   fi
+
+  exit 0
 }
 
 main "$@"
