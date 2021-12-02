@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+
+# Install docker with docker-compose optionally on Amazon Linux 2
+# Copyright 2021 asonnleitner
+
+# -e : exit immediately if a command exits with a non-zero status
+# -x : print each command before executing it
+# -u : treat unset variables as an error when substituting
+# -o pipefail : pipe commands to fd 3 in case a command in a pipe fails
+set -exuo pipefail
+
+# Stdout logging utility function
+# Usage:
+# logger <level> <message> <message>
+function logger() {
+  local levels=("success" "trace" "debug" "info" "warn" "error" "fatal")
+  local level="$1"
+  local message
+  local pretty_message
+
+  # If the first argument is a valid log level, use it. and shift the rest of the arguments
+  # Otherwise, use the default log level (info) and pass the first argument as the message
+  if [[ "${levels[*]}" =~ ${level} ]]; then
+    shift
+  else
+    level="info"
+  fi
+
+  message="$*"
+
+  # If the message is empty, don't print anything
+  if [[ -z "${message}" ]]; then
+    return
+  fi
+
+  pretty_message="$(date +"%Y-%m-%d %H:%M:%S") [${level^^}]: ${message}"
+
+  case "$level" in
+  success)
+    echo -e "\e[92m$pretty_message\e[0m"
+    ;;
+  trace)
+    echo -e "\e[97m$pretty_message\e[0m"
+    ;;
+  debug)
+    echo -e "\e[96m$pretty_message\e[0m"
+    ;;
+  info)
+    echo -e "\e[34m$pretty_message\e[0m"
+    ;;
+  warn)
+    echo -e "\e[93m$pretty_message\e[0m"
+    ;;
+  error)
+    echo -e "\e[91m$pretty_message\e[0m"
+    ;;
+  fatal)
+    echo -e "\e[91m$pretty_message\e[0m"
+    exit 1
+    ;;
+  *) ;;
+  esac
+}
+
+# Check if user is root $(id -u)
+if [[ "$(id -u)" != "0" ]]; then
+  logger "fatal" "This script must be run as root"
+  exit 1
+fi
+
+# Check if running on Amazon Linux 2
+function valid_distribution() {
+  local amazon_linux_id="amzn"
+  local amazon_linux_version="2"
+  local error_message="This script is for Amazon Linux 2 only"
+
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ "${ID}" = "${amazon_linux_id}" ]] && [[ "${VERSION_ID}" = "${amazon_linux_version}" ]]; then
+      logger "trace" "Running on Amazon Linux 2"
+      return
+    else
+      logger "fatal" "${error_message}"
+    fi
+  else
+    logger "fatal" "${error_message}"
+  fi
+}
+
+# Check if docker command is available
+function docker_installed() {
+  if [ -x "$(command -v docker)" ]; then
+    logger "info" "Docker is already installed"
+    exit 0
+  else
+    logger "trace" "Docker is not installed"
+    return
+  fi
+}
+
+# Install docker-compose
+function install_docker_compose() {
+  logger "info" "Installing docker-compose"
+  curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+    -o /usr/local/bin/docker-compose
+
+  # Make docker-compose executable
+  chmod +x /usr/local/bin/docker-compose
+}
+
+function main() {
+  # Check if running on Amazon Linux 2
+  valid_distribution
+
+  # Check if docker is installed
+  docker_installed
+
+  # Update system
+  logger "info" "Updating system"
+  yum update -y
+
+  # Provide docker repository
+  logger "info" "Providing docker repository"
+  amazon-linux-extras install docker -y
+
+  # Install docker
+  logger "info" "Installing docker"
+  yum install -y docker
+
+  # Start docker service
+  logger "info" "Starting docker service"
+  systemctl enable docker --now
+  
+
+  # Add user to docker group
+  logger "info" "Adding ${USER} to docker group"
+  usermod -aG docker "${USER}"
+
+  # Ask user if they want to install docker-compose
+  read -rp "Do you want to install docker-compose? [y/n] " REPLY
+  case "${REPLY}" in
+  y | Y | yes | Yes | YES)
+    install_docker_compose
+    ;;
+  *) ;;
+  esac
+
+  # Ask user if they want to reboot now
+  read -rp "Do you want to reboot now? [y/n] " REPLY
+  case "${REPLY}" in
+  y | Y | yes | Yes | YES)
+    reboot
+    ;;
+  *) ;;
+  esac
+}
+
+main "$@"
