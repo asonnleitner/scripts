@@ -88,18 +88,64 @@ function valid_distribution() {
   fi
 }
 
-# Check if docker command is available
-function docker_installed() {
-  if [ -x "$(command -v docker)" ]; then
-    logger "info" "Docker is already installed"
-    exit 0
-  else
-    logger "trace" "Docker is not installed"
-    return
+function command_exists() {
+  command -v "${1}" >/dev/null 2>&1
+}
+
+function is_service_active() {
+  systemctl is-active "${1}"
+}
+
+function is_service_enabled() {
+  systemctl is-enabled "${1}"
+}
+
+function update_system() {
+  logger "info" "Updating system"
+  yum update -y
+
+  # check if amazon-linux-extras is installed
+  if ! command_exists "amazon-linux-extras"; then
+    logger "info" "Installing amazon-linux-extras"
+    yum install -y amazon-linux-extras
   fi
 }
 
-# Install docker-compose
+function install_docker() {
+  logger "info" "Installing docker"
+
+  # install docker
+  yum install -y docker
+
+  # enable docker
+  enable_docker
+
+  # Check if user is in docker group
+  if ! groups | grep -q "docker"; then
+    logger "info" "Adding user ${USER} to docker group"
+    usermod -aG docker "${USER}"
+  fi
+}
+
+function enable_docker() {
+  # check if docker service is_service_active and is_service_enabled
+  if ! is_service_active "docker"; then
+    logger "info" "Enabling docker service"
+    systemctl enable docker --now
+  fi
+}
+
+function prompt_start_docker() {
+  logger "info" "Would you like to start docker?"
+  read -p "Start docker? [y/N] " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    enable_docker
+  else
+    logger "trace" "Skipping docker start"
+  fi
+}
+
 function install_docker_compose() {
   logger "info" "Installing docker-compose"
   curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
@@ -109,42 +155,54 @@ function install_docker_compose() {
   chmod +x /usr/local/bin/docker-compose
 }
 
+function prompt_install_docker_compose() {
+  logger "info" "Would you like to install docker-compose?"
+  read -p "Install docker-compose? [y/N] " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    install_docker_compose
+  else
+    logger "trace" "Skipping docker-compose installation"
+  fi
+}
+
 function main() {
   # Check if running on Amazon Linux 2
   valid_distribution
 
-  # Check if docker is installed
-  docker_installed
+  # Updating system
+  update_system
 
-  # Update system
-  logger "info" "Updating system"
-  yum update -y
+  # check if docker is installed
+  if command_exists "docker"; then
+    logger "trace" "Docker is already installed"
 
-  # Provide docker repository
-  logger "info" "Providing docker repository"
-  amazon-linux-extras install docker -y
+    #check if docker is running
+    if is_service_active "docker"; then
+      logger "trace" "Docker is already running"
+    else
+      logger "info" "Docker is not running"
+      prompt_start_docker
+    fi
 
-  # Install docker
-  logger "info" "Installing docker"
-  yum install -y docker
+    # check if docker-compose is installed
+    if command_exists "docker-compose"; then
+      logger "trace" "Docker-compose is already installed"
+    else
+      logger "info" "Docker-compose is not installed"
+      prompt_install_docker_compose
+    fi
 
-  # Start docker service
-  logger "info" "Starting docker service"
-  systemctl enable docker --now
-
-
-  # Add user to docker group
-  logger "info" "Adding ${USER} to docker group"
-  usermod -aG docker "${USER}"
-
-  # Ask user if they want to install docker-compose
-  read -rp "Do you want to install docker-compose? [y/n] " REPLY
-  case "${REPLY}" in
-  y | Y | yes | Yes | YES)
-    install_docker_compose
-    ;;
-  *) ;;
-  esac
+  else
+    logger "info" "Docker is not installed"
+    install_docker
+    # check if docker-compose is not installed
+    if ! command_exists "docker-compose"; then
+      prompt_install_docker_compose
+    fi
+  fi
+  
+  logger "info" "To apply changes, reboot is required"
 
   # Ask user if they want to reboot now
   read -rp "Do you want to reboot now? [y/n] " REPLY
