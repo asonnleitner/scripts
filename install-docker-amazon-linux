@@ -6,10 +6,9 @@
 # curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux | sudo bash
 
 # -e : exit immediately if a command exits with a non-zero status
-# -x : print each command before executing it
 # -u : treat unset variables as an error when substituting
 # -o pipefail : pipe commands to fd 3 in case a command in a pipe fails
-set -exuo pipefail
+set -euo pipefail
 
 # Stdout logging utility function
 # Usage:
