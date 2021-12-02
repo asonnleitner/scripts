@@ -11,6 +11,9 @@
 # -o pipefail : pipe commands to fd 3 in case a command in a pipe fails
 set -euo pipefail
 
+# script directory
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
 # Stdout logging utility function
 # Usage:
 # logger <level> <message> <message>
@@ -244,3 +247,6 @@ function main() {
 }
 
 main "$@"
+
+# Delete itself
+rm -- "$0"
