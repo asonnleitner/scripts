@@ -169,31 +169,9 @@ function main() {
   # check if docker is installed
   if ! command_exists "docker"; then
     install_docker
-
-    # Ask user if they want to reboot now
-    logger "info" "To apply changes, reboot is required"
-    logger "info" "Would you like to reboot now?"
-    while true; do
-      read -rp "Reboot now? [y/n]: " yn
-      case $yn in
-      [Yy]*)
-        reboot
-        break
-        ;;
-      [Nn]*)
-        break
-        ;;
-      *)
-        echo "Please answer yes or no."
-        ;;
-      esac
-    done
   fi
-
-  exit 0
+  
+  logger "success" "Docker and docker-compose are installed and enabled, if the docker command is not working, please reboot the machine"
 }
 
 main "$@"
-
-# Delete itself
-rm -- "$0"
