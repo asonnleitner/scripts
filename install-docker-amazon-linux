@@ -3,8 +3,7 @@
 # Install docker with docker-compose optionally on Amazon Linux 2
 # Copyright 2021 asonnleitner
 # Usage:
-# curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux -o $HOME/install-docker-amazon-linux \
-# && chmod +x $HOME/install-docker-amazon-linux && $HOME/install-docker-amazon-linux
+# curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux -o $HOME/install-docker-amazon-linux && chmod +x $HOME/install-docker-amazon-linux && $HOME/install-docker-amazon-linux
 
 # -e : exit immediately if a command exits with a non-zero status
 # -u : treat unset variables as an error when substituting
