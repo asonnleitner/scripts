@@ -74,10 +74,10 @@ function logger() {
 }
 
 # Check if user is root
-#if [[ "$(id -u)" != "0" ]]; then
-#  logger "fatal" "This script must be run as root"
-#  exit 1
-#fi
+if [[ "$(id -u)" != "0" ]]; then
+  logger "fatal" "This script must be run as root"
+  exit 1
+fi
 
 # Check if running on Amazon Linux 2
 function valid_distribution() {
@@ -164,13 +164,15 @@ function main() {
   # install docker-compose binary
   if [[ "${install_compose}" == "--compose" ]]; then
     install_docker_compose
+
+    else
   fi
 
   # check if docker is installed
   if ! command_exists "docker"; then
     install_docker
   fi
-  
+
   logger "success" "Docker and docker-compose are installed and enabled, if the docker command is not working, please reboot the machine"
 }
 
