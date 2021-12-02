@@ -3,7 +3,8 @@
 # Install docker with docker-compose optionally on Amazon Linux 2
 # Copyright 2021 asonnleitner
 # Usage:
-# curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux | sudo bash
+# curl -sL https://raw.githubusercontent.com/asonnleitner/scripts/main/install-docker-amazon-linux -o $HOME/install-docker-amazon-linux \
+# && chmod +x $HOME/install-docker-amazon-linux && $HOME/install-docker-amazon-linux
 
 # -e : exit immediately if a command exits with a non-zero status
 # -u : treat unset variables as an error when substituting
@@ -209,6 +210,7 @@ function main() {
       prompt_install_docker_compose
     fi
 
+    exit 0
   else
     logger "info" "Docker is not installed"
     install_docker
@@ -216,18 +218,29 @@ function main() {
     if ! command_exists "docker-compose"; then
       prompt_install_docker_compose
     fi
+
+    logger "info" "To apply changes, reboot is required"
+
+    # Ask user if they want to reboot now
+    logger "info" "Would you like to reboot now?"
+    while true; do
+      read -rp "Reboot now? [y/n]: " yn
+      case $yn in
+      [Yy]*)
+        reboot
+        break
+        ;;
+      [Nn]*)
+        break
+        ;;
+      *)
+        echo "Please answer yes or no."
+        ;;
+      esac
+    done
+
+    exit 0
   fi
-
-  logger "info" "To apply changes, reboot is required"
-
-  # Ask user if they want to reboot now
-  read -rp "Do you want to reboot now? [y/n] " REPLY
-  case "${REPLY}" in
-  y | Y | yes | Yes | YES)
-    reboot
-    ;;
-  *) ;;
-  esac
 }
 
 main "$@"
